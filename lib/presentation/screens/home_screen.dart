@@ -215,7 +215,7 @@ void _createNewFolderDialog(
               if (value.contains(RegExp('[<>:"/\\|?*]'))) {
                 return "Cant Have a Character like this :\n ${controller.notValidInput}";
               }
-              return 'Not Valid Input';
+              return null;
             },
             controller: controller.folderNameController,
             decoration: const InputDecoration(
