@@ -15,6 +15,7 @@ abstract class HomeController extends GetxController {
   void goBack();
   Future<void> createFolder(String folderName);
   Future<void> deleteFileOrFolder(FileModel item);
+  void addSearchForFileToSearchList(String searchedFile);
 }
 
 enum SortOptions { name, size, date }
@@ -22,9 +23,13 @@ enum SortOptions { name, size, date }
 class HomeControllerImp extends HomeController {
   String currentDirectory = '';
   List<FileModel> files = [];
+  final TextEditingController folderNameController = TextEditingController();
   var sortOption = SortOptions.name;
   final GlobalKey<FormState> formState = GlobalKey<FormState>();
   String notValidInput = "'[<>:\"/\\|?*]'";
+  bool isSearching = false;
+  final TextEditingController searchEditingController = TextEditingController();
+  List resultOfSearchList = [];
 
   @override
   void onInit() {
@@ -166,5 +171,14 @@ class HomeControllerImp extends HomeController {
     } catch (e) {
       Get.snackbar('Error', 'Failed to delete. Error: $e');
     }
+  }
+
+  @override
+  void addSearchForFileToSearchList(searchedFile) {
+    resultOfSearchList = files
+        .where(
+            (se) => se.name.toString().toLowerCase().startsWith(searchedFile))
+        .toList();
+    update();
   }
 }

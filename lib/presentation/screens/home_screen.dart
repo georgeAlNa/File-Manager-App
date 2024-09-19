@@ -4,6 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/home_controller.dart';
 import '../../data/models/file_model.dart';
+import '../widgets/home_widgets/appbar/appbar_title.dart';
+import '../widgets/home_widgets/appbar/drop_down_menu.dart';
+import '../widgets/home_widgets/appbar/searchbar.dart';
+import '../widgets/home_widgets/floating_action_button.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -13,96 +17,67 @@ class HomeScreen extends StatelessWidget {
     final HomeControllerImp fileController = Get.put(HomeControllerImp());
 
     return Scaffold(
-      appBar: _buildAppBar(context),
+      appBar: AppBar(
+        title: GetBuilder<HomeControllerImp>(
+          builder: (appBarControl) {
+            return appBarControl.isSearching
+                ? const BuildSearchBar()
+                : const AppbarTitle();
+          },
+        ),
+        backgroundColor: AppColor.orangeFolder,
+        actions: _buildAppBarActions(context),
+      ),
       body: _buildBody(),
-      floatingActionButton: _buildFloatingActionButton(fileController),
+      floatingActionButton:
+          BuildFloatingActionButton(controller: fileController),
     );
   }
 }
 
-AppBar _buildAppBar(BuildContext context) {
-  return AppBar(
-    title: GetBuilder<HomeControllerImp>(
-      builder: (appBarController) => Text(
-        appBarController.currentDirectory == '/storage/emulated/0'
-            ? 'Device Storage'
-            : appBarController.currentDirectory,
-        style: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
-          color: AppColor.blackColor,
-        ),
-      ),
-    ),
-    backgroundColor: AppColor.orangeFolder,
-    actions: [
-      GetBuilder<HomeControllerImp>(
-        builder: (dropDownController) {
-          return _buildDropDownMenu(dropDownController);
-        },
-      ),
-      GetBuilder<HomeControllerImp>(
-        builder: (con) {
-          return con.currentDirectory == '/storage/emulated/0'
-              ? Container()
-              : IconButton(
-                  icon: const Icon(Icons.post_add_sharp),
-                  onPressed: () => _createNewFolderDialog(context, con),
+List<Widget> _buildAppBarActions(BuildContext context) {
+  return [
+    GetBuilder<HomeControllerImp>(
+      builder: (appBarActionController) {
+        return appBarActionController.isSearching
+            ? IconButton(
+                onPressed: () {
+                  appBarActionController.isSearching = false;
+                  appBarActionController.searchEditingController.clear();
+                  appBarActionController.update();
+                },
+                icon: const Icon(
+                  Icons.close,
                   color: AppColor.blackColor,
-                );
-        },
-      ),
-    ],
-  );
-}
-
-Widget _buildDropDownMenu(HomeControllerImp dropDownController) {
-  return DropdownButton<SortOptions>(
-    dropdownColor: AppColor.orangeAddToCartColor,
-    value: dropDownController.sortOption,
-    padding: const EdgeInsets.all(8),
-    icon: const Icon(
-      Icons.arrow_drop_down,
-      color: AppColor.blackColor,
+                ),
+              )
+            : Row(
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      appBarActionController.isSearching = true;
+                      appBarActionController.update();
+                    },
+                    icon: const Icon(
+                      Icons.search,
+                      color: AppColor.blackColor,
+                    ),
+                  ),
+                  BuildDropDownMenu(dropDownController: appBarActionController),
+                  appBarActionController.currentDirectory ==
+                          '/storage/emulated/0'
+                      ? Container()
+                      : IconButton(
+                          icon: const Icon(Icons.post_add_sharp),
+                          onPressed: () => _createNewFolderDialog(
+                              context, appBarActionController),
+                          color: AppColor.blackColor,
+                        ),
+                ],
+              );
+      },
     ),
-    items: const [
-      DropdownMenuItem<SortOptions>(
-        value: SortOptions.name,
-        child: Text(
-          'Name',
-          style: TextStyle(
-            fontSize: 12,
-            color: AppColor.blackColor,
-          ),
-        ),
-      ),
-      DropdownMenuItem<SortOptions>(
-        value: SortOptions.size,
-        child: Text(
-          'Size',
-          style: TextStyle(
-            fontSize: 12,
-            color: AppColor.blackColor,
-          ),
-        ),
-      ),
-      DropdownMenuItem<SortOptions>(
-        value: SortOptions.date,
-        child: Text(
-          'Date',
-          style: TextStyle(
-            fontSize: 12,
-            color: AppColor.blackColor,
-          ),
-        ),
-      ),
-    ],
-    onChanged: (SortOptions? value) {
-      if (value != null) {
-        dropDownController.setSortOption(value);
-      }
-    },
-  );
+  ];
 }
 
 Widget _buildBody() {
@@ -112,21 +87,6 @@ Widget _buildBody() {
           ? _noElementsFound()
           : _buildListViweBuilder(controller);
     },
-  );
-}
-
-Widget _buildFloatingActionButton(HomeControllerImp controller) {
-  return FloatingActionButton(
-    onPressed: () {
-      if (controller.currentDirectory != '/') {
-        controller.goBack();
-      }
-    },
-    backgroundColor: AppColor.orangeFolder,
-    child: const Icon(
-      Icons.arrow_back,
-      color: AppColor.blackColor,
-    ),
   );
 }
 
@@ -145,9 +105,13 @@ Widget _noElementsFound() {
 
 Widget _buildListViweBuilder(HomeControllerImp controller) {
   return ListView.builder(
-    itemCount: controller.files.length,
+    itemCount: controller.resultOfSearchList.isEmpty
+        ? controller.files.length
+        : controller.resultOfSearchList.length,
     itemBuilder: (context, index) {
-      final file = controller.files[index];
+      final file = controller.resultOfSearchList.isEmpty
+          ? controller.files[index]
+          : controller.resultOfSearchList[index];
       return _buildListTile(
         subTitle: '${file.lastModified}\n${file.size! * 0.000001} MB',
         isFolder: file.isFolder,
@@ -236,8 +200,6 @@ Widget _buildListTile({
 
 void _createNewFolderDialog(
     BuildContext context, HomeControllerImp controller) {
-  final TextEditingController folderNameController = TextEditingController();
-
   showDialog(
     context: context,
     builder: (context) {
@@ -255,7 +217,7 @@ void _createNewFolderDialog(
               }
               return 'Not Valid Input';
             },
-            controller: folderNameController,
+            controller: controller.folderNameController,
             decoration: const InputDecoration(
               focusColor: AppColor.greenColor,
               hintText: "Folder Name",
@@ -276,7 +238,7 @@ void _createNewFolderDialog(
           TextButton(
             onPressed: () {
               if (controller.formState.currentState!.validate()) {
-                controller.createFolder(folderNameController.text);
+                controller.createFolder(controller.folderNameController.text);
                 Navigator.of(context).pop();
               }
             },
